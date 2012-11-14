@@ -93,7 +93,7 @@ class XF:
               item=item.encode("u8")
             except:
               pass
-        return hashlib.md5(item).hexdigest().upper()
+        return hashlib.md5(str(item)).hexdigest().upper()
 
     def start(self):
         self.cookieJar=LWPCookieJar(self.__cookiepath)
@@ -362,7 +362,7 @@ class XF:
 
         for i in lists:
             num=int(i[0])-1
-            cmd="aria2c -c -s10 -x10 --header 'Cookie:ptisp=edu; FTN5K=%s' '%s'"%(self.filecom[num],self.filehttp[num])
+            cmd="aria2c -c -s10 --header 'Cookie:ptisp=edu; FTN5K=%s' '%s'"%(self.filecom[num],self.filehttp[num])
             if sys.version_info >= (3,0):
                 pass
             else:
@@ -439,7 +439,7 @@ try:
         else:
             assert False, "unhandled option"
     if not hasattr(xf,"_downpath"):
-        xf._downpath = os.path.expanduser("~/下载")
+        xf._downpath = os.path.expanduser("~/download")
     os.makedirs(xf._downpath) if not os.path.exists(xf._downpath) else None
 
     xf.start()
