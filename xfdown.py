@@ -17,7 +17,7 @@ import getopt
 
 def _(string):
     try:
-        return string.decode("u8")
+        return string.encode("utf-8")
     except:
         return string
 
@@ -38,6 +38,13 @@ def hexchar2bin(hex):
         arry.append(int(hex[i:i+2],16))
     return arry
 
+def get_gtk(strs):
+    hash = 5381
+    for i in strs:
+        hash += (hash << 5) + ord(i)
+    return hash & 0x7fffffff
+
+
 
 class LWPCookieJar(cookiejar.LWPCookieJar):
     def save(self, filename=None, ignore_discard=False, ignore_expires=False,userinfo=None):
@@ -46,20 +53,20 @@ class LWPCookieJar(cookiejar.LWPCookieJar):
             else: raise ValueError(MISSING_FILENAME_TEXT)
 
         if not os.path.exists(filename):
-          f=open(filename,'w')
-          f.close()
-        f = open(filename, "rw+")
-        try:
+            f=open(filename,'w')
+            f.close()
+
+        with open(filename, "w") as f:
+            print f
             if userinfo:
                 f.seek(0)
+                print f
                 f.write("#LWP-Cookies-2.0\n")
                 f.write("#%s\n"%userinfo)
             else:
                 f.seek(len(''.join(f.readlines()[:2])))
             f.truncate()
             f.write(self.as_lwp_str(ignore_discard, ignore_expires))
-        finally:
-            f.close()
 
 
 
@@ -90,7 +97,7 @@ class XF:
     def __md5(self,item):
         if sys.version_info >= (3,0):
             try:
-              item=item.encode("u8")
+              item=item.encode("utf-8")
             except:
               pass
         return hashlib.md5(str(item)).hexdigest().upper()
@@ -109,7 +116,7 @@ class XF:
                 
 
         opener = request.build_opener(request.HTTPCookieProcessor(self.cookieJar))
-        opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
+        opener.addheaders = [('User-Agent', 'Mozilla/5.0'), ("Referer","http://lixian.qq.com/main.html")]
         request.install_opener(opener)
         
 
@@ -166,13 +173,13 @@ class XF:
 
         urlv="http://ptlogin2.qq.com/login?u=%s&p=%s&verifycode=%s"%(self.__qq,self.passwd,self.__verifycode[1])+"&aid=567008010&u1=http%3A%2F%2Flixian.qq.com%2Fmain.html&h=1&ptredirect=1&ptlang=2052&from_ui=1&dumy=&fp=loginerroralert&action=2-10-&mibao_css=&t=1&g=1"
         str = self.__request(url = urlv)
-        if str.find(_('登录成功')) != -1:
+        if str.find(u'登录成功') != -1:
             self.__getlogin()
             self.main()
-        elif str.find(_('验证码不正确')) != -1:
+        elif str.find(u'验证码不正确') != -1:
             self.__getverifycode()
             self.__Login(False,True)
-        elif str.find(_('不正确')) != -1:
+        elif str.find(u'不正确') != -1:
             _print('你输入的帐号或者密码不正确，请重新输入。')
             self.__Login(True)
         else:
@@ -195,8 +202,13 @@ class XF:
             filename=url.split("/")[-1]
         return filename.split("?")[0]
     def __getlogin(self):
+        self.__request(url ="http://lixian.qq.com/handler/lixian/check_tc.php",data={},savecookie=True)
+
         urlv = 'http://lixian.qq.com/handler/lixian/do_lixian_login.php'
-        str = self.__request(url =urlv,data={},savecookie=True)
+        with open(self.__cookiepath) as f:
+            fi = re.compile('skey="([^"]+)"')
+            skey = fi.findall("".join(f.readlines()))[0]
+        str = self.__request(url =urlv,data={"g_tk": get_gtk(skey)},savecookie=True)
         return str
 
     def __getlist(self):
@@ -206,9 +218,9 @@ class XF:
             urlv = 'http://lixian.qq.com/handler/lixian/get_lixian_list.php'
             res = self.__request(urlv,{})
             res = json.JSONDecoder().decode(res)
-            if res["msg"]==_('未登录!'):
+            if res["msg"]==u'未登录!':
                 res=json.JSONDecoder().decode(self.__getlogin())
-                if res["msg"]==_('未登录!'):
+                if res["msg"]== u'未登录!':
                     self.__Login()
 
                 else:
@@ -226,7 +238,7 @@ class XF:
                 _print ("序号\t大小\t进度\t文件名")
                 for num in range(len(res['data'])):
                     index=res['data'][num]
-                    self.filename.append(index['file_name'].encode("u8"))
+                    self.filename.append(index['file_name'].encode("utf-8"))
                     self.filehash.append(index['code'])
                     size=index['file_size']
                     self.filemid.append(index['mid'])
@@ -244,8 +256,8 @@ class XF:
                             break
                     size="%.1f%s"%(size,_dw)
                     out="%d\t%s\t%s%%\t%s"%(num+1,size,percent,_(self.filename[num]))
-                    if num % 2==0 and os.name=='posix':
-                        out="\033[47m%s\033[m"%out
+                    #if num % 2==0 and os.name=='posix':
+                    #    out="\033[47m%s\033[m"%out
 
                     _print (out)
                 _print ("=======================END=========================\n")
@@ -366,7 +378,7 @@ class XF:
             if sys.version_info >= (3,0):
                 pass
             else:
-                cmd=cmd.encode("u8")
+                cmd=cmd.encode("utf-8")
 
             if i[1].upper()=='P':
                 print('\n%s'%cmd)
